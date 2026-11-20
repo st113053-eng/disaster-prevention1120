@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>南投山區坡地防災數位治理平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b131c; --bg-grid: rgba(87,184,164,0.05);
+    --surface:#141f2b; --surface-2:#1b2a38; --surface-3:#22384a;
+    --border:#25384a; --border-soft:#1c2b39;
+    --text:#e8eef4; --text-dim:#8fa4b8; --text-faint:#5b7186;
+    --brand:#57b8a4; --brand-dim:#3a7d70;
+    --safe:#35c97b; --safe-glow: rgba(53,201,123,0.55);
+    --warn:#f0b429; --warn-glow: rgba(240,180,41,0.55);
+    --danger:#ef4444; --danger-glow: rgba(239,68,68,0.6);
+    --pending:#5b7186;
+    --radius-card:16px; --radius-sm:8px;
+    --font-display:'Chakra Petch', 'Noto Sans TC', sans-serif;
+    --font-body:'Noto Sans TC', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/48px 48px,
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px) 0 0/48px 48px,
+      radial-gradient(ellipse 900px 500px at 12% -10%, rgba(87,184,164,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(240,180,41,0.06), transparent 55%),
+      var(--bg);
+    color:var(--text); font-family:var(--font-body); min-height:100vh; padding-bottom:4rem;
+  }
+  a{ color:inherit; }
+  button{ font-family:inherit; cursor:pointer; }
+  :focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+
+  header.top{
+    padding:1.6rem clamp(1rem, 4vw, 3rem) 1.2rem;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    flex-wrap:wrap; gap:1rem; border-bottom:1px solid var(--border-soft);
+  }
+  .brand-block .eyebrow{ font-family:var(--font-display); font-size:0.72rem; letter-spacing:0.28em; color:var(--brand); text-transform:uppercase; margin-bottom:6px; }
+  .brand-block h1{ font-size:clamp(1.3rem, 2.6vw, 1.8rem); font-weight:900; letter-spacing:0.02em; color:#fff; }
+  .brand-block .sub{ margin-top:6px; font-size:0.85rem; color:var(--text-dim); }
+  .header-right{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  #liveClock{ font-family:var(--font-mono); font-size:0.95rem; color:var(--text-dim); letter-spacing:0.05em; }
+  .legend{ display:flex; gap:14px; font-size:0.78rem; color:var(--text-dim); }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+
+
+  .led{ width:9px; height:9px; border-radius:50%; display:inline-block; background:var(--pending); }
+  .led.safe{ background:var(--safe); box-shadow:0 0 8px 1px var(--safe-glow); }
+  .led.warn{ background:var(--warn); box-shadow:0 0 8px 1px var(--warn-glow); }
+  .led.danger{ background:var(--danger); box-shadow:0 0 8px 1px var(--danger-glow); }
+  .led.pending{ background:var(--pending); }
+  @media (prefers-reduced-motion: no-preference){
+    .led.danger.pulse{ animation: pulse 1.4s ease-in-out infinite; }
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow:0 0 8px 1px var(--danger-glow); }
+    50%{ box-shadow:0 0 16px 4px var(--danger-glow); }
+  }
+
+
+  .notice{
+    margin:1.1rem clamp(1rem, 4vw, 3rem) 0; padding:10px 16px;
+    border:1px dashed var(--border); border-radius:var(--radius-sm);
+    font-size:0.78rem; color:var(--text-faint); background:rgba(255,255,255,0.015);
+  }
+  main{ padding:1.6rem clamp(1rem, 4vw, 3rem) 0; }
+  .section-heading{ display:flex; align-items:baseline; gap:10px; margin-bottom:1.1rem; }
+  .section-heading h2{ font-family:var(--font-display); font-size:1.05rem; letter-spacing:0.04em; color:#fff; }
+  .section-heading .count{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-faint); }
+
+
+  #overviewView .grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; }
+  .site-card{
+    text-align:left; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-card); padding:1.3rem 1.4rem;
+    display:flex; flex-direction:column; gap:14px;
+    transition:transform .18s ease, border-color .18s ease; position:relative; overflow:hidden;
+  }
+  .site-card::before{ content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--pending); }
+  .site-card.status-safe::before{ background:var(--safe); }
+  .site-card.status-warn::before{ background:var(--warn); }
+  .site-card.status-danger::before{ background:var(--danger); }
+  .site-card:hover{ transform:translateY(-3px); border-color:var(--brand-dim); }
+  .site-card .top-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .site-card h3{ font-size:1.08rem; font-weight:700; color:#fff; }
+  .site-card .township{ font-size:0.76rem; color:var(--text-faint); margin-top:2px; }
+  .demo-tag{ font-family:var(--font-mono); font-size:0.65rem; letter-spacing:0.05em; color:var(--brand); border:1px solid var(--brand-dim); padding:2px 8px; border-radius:20px; white-space:nowrap; }
+  .status-row{ display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-weight:600; font-size:0.95rem; }
+  .status-row.text-safe{ color:var(--safe); }
+  .status-row.text-warn{ color:var(--warn); }
+  .status-row.text-danger{ color:var(--danger); }
+  .status-row.text-pending{ color:var(--pending); }
+  .mini-readouts{ display:grid; gap:8px; border-top:1px solid var(--border-soft); padding-top:12px; }
+  .mini-readouts div{ font-size:0.68rem; color:var(--text-faint); text-align:center; }
+  .mini-readouts strong{ display:block; font-family:var(--font-mono); font-size:0.92rem; color:#fff; font-weight:500; margin-top:2px; }
+  .source-note{ font-size:0.68rem; color:var(--text-faint); }
+
+
+  #siteView{ display:none; }
+  .breadcrumb{ display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--text-dim); margin-bottom:1.2rem; }
+  .breadcrumb button{ background:none; border:1px solid var(--border); color:var(--text-dim); padding:6px 14px; border-radius:20px; font-size:0.8rem; transition:border-color .15s ease, color .15s ease; }
+  .breadcrumb button:hover{ border-color:var(--brand); color:var(--brand); }
+  .site-header{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:1.1rem; }
+  .site-header h2{ font-size:1.5rem; font-weight:900; color:#fff; }
+  .site-header .meta{ font-size:0.82rem; color:var(--text-dim); margin-top:4px; }
+
+
+  .overall-card{
+    background:#fff; width:100%; padding:20px 30px; border-radius:16px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:1.6rem;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;
+    border-left:8px solid #cbd5e0; transition:all .3s ease;
+  }
+  .overall-card.risk-safe{ border-left-color:#2ecc71; background-color:#f0fff4; }
+  .overall-card.risk-warning{ border-left-color:#f1c40f; background-color:#fffff0; }
+  .overall-card.risk-danger{ border-left-color:#e74c3c; background-color:#fff5f5; }
+  .overall-title{ font-size:1.2rem; font-weight:700; color:#2d3748; }
+  .overall-status{ font-size:1.3rem; font-weight:800; }
+
+
+  .contact-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; }
+  .cam-tile{ background:#050a0f; border:1px solid var(--border); border-radius:var(--radius-card); overflow:hidden; position:relative; }
+  .cam-screen{
+    height:150px; position:relative; display:flex; align-items:center; justify-content:center;
+    background:
+      repeating-linear-gradient(to bottom, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px),
+      radial-gradient(ellipse at center, #0e1a22 0%, #050a0f 85%);
+  }
+  .cam-screen .cam-icon{ font-family:var(--font-display); font-size:1.6rem; color:var(--text-faint); letter-spacing:0.05em; }
+  .cam-label-top{ position:absolute; top:8px; left:10px; right:10px; display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:0.66rem; color:#cfe8de; }
+  .cam-label-top .rec{ display:flex; align-items:center; gap:5px; }
+  .cam-label-top .dot{ width:6px; height:6px; border-radius:50%; background:var(--danger); }
+  .cam-label-bottom{ position:absolute; bottom:8px; left:10px; right:10px; font-family:var(--font-mono); font-size:0.64rem; color:#8fa4b8; display:flex; justify-content:space-between; }
+  .cam-offline .cam-icon{ color:var(--text-faint); }
+  .cam-offline .cam-label-top .dot{ background:var(--text-faint); }
+  .cam-info{ padding:12px 14px 14px; border-top:1px solid var(--border-soft); }
+  .cam-info .role{ font-size:0.7rem; color:var(--brand); font-family:var(--font-mono); letter-spacing:0.04em; }
+  .cam-info .name{ font-size:0.95rem; font-weight:700; margin:3px 0 8px; color:#fff; }
+  .cam-info .conn-row{ display:flex; align-items:center; gap:6px; font-size:0.74rem; color:var(--text-dim); margin-bottom:10px; }
+  .cam-info button{ width:100%; background:none; border:1px solid var(--border); color:var(--text-dim); padding:8px 10px; border-radius:var(--radius-sm); font-size:0.76rem; transition:border-color .15s ease, color .15s ease; }
+  .cam-info button:hover{ border-color:var(--brand); color:var(--brand); }
+
+
+  #toast{
+    position:fixed; bottom:24px; left:50%; transform:translate(-50%, 20px);
+    background:var(--surface-3); border:1px solid var(--brand-dim); color:var(--text);
+    padding:12px 20px; border-radius:var(--radius-sm); font-size:0.85rem;
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:50;
+  }
+  #toast.show{ opacity:1; transform:translate(-50%, 0); }
+  footer.foot{ margin-top:3rem; padding:1.4rem clamp(1rem, 4vw, 3rem); border-top:1px solid var(--border-soft); font-size:0.72rem; color:var(--text-faint); text-align:center; }
+  @media (max-width:560px){
+    header.top{ flex-direction:column; }
+    .header-right{ align-items:flex-start; }
+  }
+
+
+  /* 儀表板樣式 */
+  #sensorDashboard *{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; box-sizing:border-box; }
+  #sensorDashboard{ margin-bottom:2rem; }
+  #sensorDashboard .status-bar{ font-size:0.95rem; color:#9aa8b6; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:16px; }
+  #sensorDashboard .status-dot{ width:10px; height:10px; background-color:#ccc; border-radius:50%; display:inline-block; transition:background-color .3s; }
+  #sensorDashboard .status-dot.online{ background-color:#2ecc71; }
+  #sensorDashboard .dashboard-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; width:100%; }
+  #sensorDashboard .card{ background:#fff; padding:2rem; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,0.06); text-align:center; display:flex; flex-direction:column; justify-content:space-between; transition:transform .3s ease; }
+  #sensorDashboard .card:hover{ transform:translateY(-5px); }
+  #sensorDashboard .card-title{ color:#2d3748; font-size:1.3rem; margin-bottom:1.5rem; font-weight:700; }
+  #sensorDashboard .icon-box{ font-size:3rem; margin-bottom:10px; }
+  #sensorDashboard .value-display{ font-size:2rem; font-weight:bold; color:#2c3e50; margin-bottom:1.2rem; }
+  #sensorDashboard .water-gauge-container{ width:150px; height:150px; margin:0 auto 1.2rem; border-radius:50%; background:#e6f0fa; display:flex; justify-content:center; align-items:center; border:4px solid #007bff; }
+  #sensorDashboard .status-badge{ display:inline-block; padding:8px 18px; border-radius:30px; font-weight:700; font-size:0.9rem; margin-bottom:1.2rem; transition:all .3s ease; background:#edf2f7; color:#4a5568; }
+  #sensorDashboard .status-low{ background-color:#c3e6cb; color:#155724; }
+  #sensorDashboard .status-medium{ background-color:#ffeeba; color:#856404; }
+  #sensorDashboard .status-high{ background-color:#f5c6cb; color:#721c24; }
+  #sensorDashboard .vibration-card{ transition:background-color .3s, border .3s; }
+  #sensorDashboard .vibration-card.vibration-safe{ background-color:#f0fff4; border:2px solid #2ecc71; }
+  #sensorDashboard .vibration-card.vibration-warning{ background-color:#fffff0; border:2px solid #f1c40f; }
+  #sensorDashboard .vibration-card.vibration-alert{ background-color:#fff5f5; border:2px solid #e74c3c; }
+  #sensorDashboard .info-group{ border-top:1px solid #edf2f7; padding-top:1rem; text-align:left; font-size:0.85rem; color:#718096; }
+  #sensorDashboard .info-row{ display:flex; justify-content:space-between; margin-bottom:0.4rem; }
+  #sensorDashboard .info-value{ font-weight:600; color:#4a5568; }
+
+
+  /* 水位卡片：依層級改變背景（低=綠、中=黃、高=紅） */
+  #sensorDashboard .water-card{ transition:background-color .3s, border .3s; border:2px solid transparent; }
+  #sensorDashboard .water-card.water-low{ background-color:#f0fff4; border-color:#2ecc71; }
+  #sensorDashboard .water-card.water-medium{ background-color:#fffff0; border-color:#f1c40f; }
+  #sensorDashboard .water-card.water-high{ background-color:#fff5f5; border-color:#e74c3c; }
+
+
+  /* 手動輸入區 */
+  #sensorDashboard .manual-box{ display:none; text-align:left; background:#f7fafc; border:1px dashed #cbd5e0; border-radius:12px; padding:12px 14px; margin-bottom:1rem; }
+  #sensorDashboard .manual-box.show{ display:block; }
+  #sensorDashboard .manual-box label{ display:block; font-size:0.8rem; font-weight:700; color:#4a5568; margin-bottom:6px; }
+  #sensorDashboard .manual-row{ display:flex; gap:8px; }
+  #sensorDashboard .manual-row input{ flex:1; min-width:0; padding:8px 10px; border:1px solid #cbd5e0; border-radius:8px; font-size:0.95rem; color:#2d3748; background:#fff; }
+  #sensorDashboard .manual-row button{ padding:8px 16px; border:none; border-radius:8px; background:#2b6cb0; color:#fff; font-weight:700; font-size:0.85rem; }
+  #sensorDashboard .manual-row button:disabled{ opacity:.5; cursor:not-allowed; }
+  #sensorDashboard .manual-hint{ font-size:0.74rem; color:#718096; margin-top:6px; min-height:1em; }
+  #sensorDashboard .manual-hint.err{ color:#c53030; }
+  #sensorDashboard .manual-hint.ok{ color:#2f855a; }
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="brand-block">
+    <div class="eyebrow">Nantou Slope Disaster Grid</div>
+    <h1>南投山區坡地防災數位治理平台</h1>
+    <div class="sub">即時感測 · 分級預警 · 部落聯防</div>
+  </div>
+  <div class="header-right">
+    <div id="liveClock">--:--:--</div>
+    <div class="legend">
+      <span><i class="led safe"></i>正常</span>
+      <span><i class="led warn"></i>注意</span>
+      <span><i class="led danger"></i>警報</span>
+    </div>
+  </div>
+</header>
+
+
+<div class="notice">
+  ＊ 本平台為技術示範系統。「東埔部落站」為實際串接 Firebase 之示範點，其餘五站數據為模擬展示，正式佈署將逐站串接現場感測設備。
+</div>
+
+
+<main>
+  <section id="overviewView">
+    <div class="section-heading">
+      <h2>山區管控站總覽</h2>
+      <span class="count">6 站監控中</span>
+    </div>
+    <div class="grid" id="siteGrid"></div>
+  </section>
+
+
+  <section id="siteView">
+    <div class="breadcrumb">
+      <button id="backBtn">← 返回總覽</button>
+      <span id="breadcrumbText"></span>
+    </div>
+
+
+    <div class="site-header">
+      <div>
+        <h2 id="siteTitle"></h2>
+        <div class="meta" id="siteMeta"></div>
+      </div>
+    </div>
+
+
+    <div id="overallCard" class="overall-card risk-safe">
+      <div>
+        <div class="overall-title">當前綜合環境安全狀態：</div>
+        <div id="overallDesc" style="font-size: 0.9rem; color: #4a5568;">數據獲取中...</div>
+      </div>
+      <div id="overallStatus" class="overall-status" style="color: #2ecc71;">🟢 狀態正常 (安全)</div>
+    </div>
+
+
+    <div class="section-heading"><h2>偵測數值</h2></div>
+
+
+    <div id="sensorDashboard">
+      <div class="status-bar">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText">正在連線至 Firebase...</span>
+      </div>
+
+
+      <div class="dashboard-grid">
+
+
+        <!-- 山體震動 -->
+        <div id="vibCard" class="card vibration-card">
+          <h2 class="card-title">🔔 山體震動監控</h2>
+          <div class="icon-box">⛰️</div>
+          <div id="vibValue" class="value-display">--</div>
+          <div>
+            <div id="vibStatusBadge" class="status-badge">等待數據...</div>
+          </div>
+
+
+          <div class="manual-box" id="vibManualBox">
+            <label for="vibInput">✍️ 手動輸入震動值（感測器未上傳時備用）</label>
+            <div class="manual-row">
+              <input type="number" id="vibInput" min="0" step="1" placeholder="例如 120" />
+              <button id="vibSubmit" type="button">上傳</button>
+            </div>
+            <div class="manual-hint" id="vibHint"></div>
+          </div>
+
+
+          <div class="info-group">
+            <div class="info-row"><span>監控節點：</span><span class="info-value">/sensor/current/vibration</span></div>
+            <div class="info-row"><span>資料來源：</span><span id="vibSource" class="info-value">--</span></div>
+            <div class="info-row"><span>最後更新：</span><span id="vibLastUpdated" class="info-value">--</span></div>
+          </div>
+        </div>
+
+
+        <!-- 溝渠水位 -->
+        <div id="waterCard" class="card water-card">
+          <h2 class="card-title">💧 溝渠水位監控</h2>
+          <div class="water-gauge-container">
+            <div>
+              <span id="waterValue" class="value-display" style="color: #007bff; margin-bottom: 0;">--</span>
+              <div style="font-size: 0.8rem; color: #666;">(0-2500)</div>
+            </div>
+          </div>
+          <div>
+            <div id="waterStatusBadge" class="status-badge">等待數據...</div>
+          </div>
+
+
+          <div class="manual-box" id="waterManualBox">
+            <label for="waterInput">✍️ 手動輸入水位值（感測器未上傳時備用）</label>
+            <div class="manual-row">
+              <input type="number" id="waterInput" min="0" max="2500" step="1" placeholder="0 ~ 2500" />
+              <button id="waterSubmit" type="button">上傳</button>
+            </div>
+            <div class="manual-hint" id="waterHint"></div>
+          </div>
+
+
+          <div class="info-group">
+            <div class="info-row"><span>監控節點：</span><span class="info-value">/sensor/current/waterLevel</span></div>
+            <div class="info-row"><span>資料來源：</span><span id="waterSource" class="info-value">--</span></div>
+            <div class="info-row"><span>最後更新：</span><span id="waterLastUpdated" class="info-value">--</span></div>
+          </div>
+        </div>
+
+
+      </div>
+    </div>
+
+
+    <div class="section-heading"><h2>三方監控回報</h2><span class="count">村里長辦公室 + 住戶 x2</span></div>
+    <div class="contact-grid" id="contactGrid"></div>
+  </section>
+</main>
+
+
+<footer class="foot">
+  南投山區坡地整合防災示範計畫（測試版）— 資料每 4 秒更新一次
+</footer>
+
+
+<div id="toast"></div>
+
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, push, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+
+  // ===== Firebase 設定 =====
+  // 注意：apiKey / projectId / appId 必須與 databaseURL 屬於同一個 Firebase 專案
+  const firebaseConfig = {
+    apiKey: "AIzaSyBrcCjGHUnoKQqi3lrCkrR3d5mAePCRgCI",
+    authDomain: "test01-6b8f6.firebaseapp.com",
+    databaseURL: "https://project-7401501038209464150-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "test01-6b8f6",
+    storageBucket: "test01-6b8f6.firebasestorage.app",
+    messagingSenderId: "502564568917",
+    appId: "1:502564568917:web:561b30f142302dacedf9dc"
+  };
+
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+
+  // 水位範圍與分級：1000 以下低；1001~1500 中；1500 以上高
+  const WATER_MAX = 2500;
+  const WATER_LOW_MAX = 1000;
+  const WATER_MID_MAX = 1500;
+
+
+  // 震動分級：0 無震動；1~2000 注意；超過 2000 強烈
+  const VIB_STRONG_ABOVE = 2000;
+
+
+  // 東埔站只有「水位 + 震動」兩個感測器；其餘站為模擬資料
+  const SITES = [
+    { id:'dongpu', name:'東埔部落站', township:'信義鄉', elevation:1130, isDemo:true,
+      data:{ water:null, vibration:null },
+      contacts:[
+        { role:'村里長辦公室', name:'東埔村辦公處', online:true },
+        { role:'住戶監控 A', name:'陳宅（部落入口）', online:true },
+        { role:'住戶監控 B', name:'王宅（溪畔農舍）', online:true },
+      ]
+    },
+    { id:'wangxiang', name:'望鄉部落站', township:'仁愛鄉', elevation:1520, isDemo:false,
+      data:{ rainfall:6, soil:38, vibration:80 },
+      contacts:[
+        { role:'村里長辦公室', name:'望鄉社區發展協會', online:true },
+        { role:'住戶監控 A', name:'高宅（部落上緣）', online:true },
+        { role:'住戶監控 B', name:'林宅（產業道路旁）', online:true },
+      ]
+    },
+    { id:'qingjing', name:'清境農場站', township:'仁愛鄉', elevation:1750, isDemo:false,
+      data:{ rainfall:4, soil:32, vibration:20 },
+      contacts:[
+        { role:'村里長辦公室', name:'見晴里辦公處', online:true },
+        { role:'住戶監控 A', name:'民宿群聚 A 區', online:true },
+        { role:'住戶監控 B', name:'農場宿舍區', online:true },
+      ]
+    },
+    { id:'lushan', name:'廬山溫泉區站', township:'仁愛鄉', elevation:1200, isDemo:false,
+      data:{ rainfall:46, soil:84, vibration:6200 },
+      contacts:[
+        { role:'村里長辦公室', name:'精英里辦公處', online:true },
+        { role:'住戶監控 A', name:'溫泉旅館聚落', online:true },
+        { role:'住戶監控 B', name:'河床邊民宅', online:false },
+      ]
+    },
+    { id:'taomi', name:'桃米坑溪站', township:'魚池鄉', elevation:650, isDemo:false,
+      data:{ rainfall:22, soil:64, vibration:40 },
+      contacts:[
+        { role:'村里長辦公室', name:'桃米社區發展協會', online:true },
+        { role:'住戶監控 A', name:'生態園區入口', online:true },
+        { role:'住戶監控 B', name:'坑溪畔農舍', online:true },
+      ]
+    },
+    { id:'shanlin', name:'杉林溪站', township:'鹿谷鄉', elevation:1600, isDemo:false,
+      data:{ rainfall:9, soil:41, vibration:10 },
+      contacts:[
+        { role:'村里長辦公室', name:'內湖里辦公處', online:true },
+        { role:'住戶監控 A', name:'茶園管理站', online:true },
+        { role:'住戶監控 B', name:'林道入口崗哨', online:true },
+      ]
+    },
+  ];
+
+
+  const THRESH = {
+    rainfall:{ warn:15, danger:40 },
+    soil:{ warn:60, danger:80 },
+    vibration:{ warn:1, danger:VIB_STRONG_ABOVE + 1 },            // 1 起為注意；2001 起為強烈
+    water:{ warn:WATER_LOW_MAX + 1, danger:WATER_MID_MAX + 1 },   // 1001 起為中；1501 起為高
+  };
+  const LEVEL_META = [ { key:'safe', label:'正常' }, { key:'warn', label:'注意' }, { key:'danger', label:'警報' } ];
+  const BANNER_DESC = {
+    pending:'尚未取得感測資料，等待訊號連線中。',
+    safe:'各項感測數據均在安全範圍內，系統持續監測中。',
+    warn:'偵測到數值上升，請留意坡地狀況，加強巡查頻率。',
+    danger:'偵測數值已達警戒閾值，研判有較高崩塌風險，請立即通報並評估低處住戶疏散。',
+  };
+
+
+  function isNil(v){ return v===null || v===undefined; }
+
+
+  function levelOf(kind, value){
+    if(isNil(value)) return -1;
+    const t = THRESH[kind];
+    if(value >= t.danger) return 2;
+    if(value >= t.warn) return 1;
+    return 0;
+  }
+  // 只計算「有數值」的項目；全部沒值才是等待訊號
+  function overallLevel(site){
+    const d = site.data;
+    const pairs = site.isDemo
+      ? [['water', d.water], ['vibration', d.vibration]]
+      : [['rainfall', d.rainfall], ['soil', d.soil], ['vibration', d.vibration]];
+    const levels = pairs.map(([k,v])=>levelOf(k,v)).filter(l=>l>=0);
+    return levels.length ? Math.max(...levels) : -1;
+  }
+  function levelClass(level){ return level===-1 ? 'pending' : LEVEL_META[level].key; }
+  function levelLabel(level){ return level===-1 ? '等待訊號' : LEVEL_META[level].label; }
+
+
+  let currentSiteId = null;
+
+
+  /* ===== 東埔站：感測器值 + 手動值 ===== */
+  const live   = { vibration:null, water:null };      // 感測器（sensor/current）
+  const manual = { vibration:null, water:null };      // 手動值（sensor/manual）：{ value, ts }
+  const dongpuMeta = { vibSrc:'--', vibTime:null, waterSrc:'--', waterTime:null };
+  let liveVibTime = null, liveWaterTime = null;
+
+
+  function isToday(ts){
+    if(!ts) return false;
+    const a = new Date(ts), b = new Date();
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+  function pickValue(liveVal, liveTime, man){
+    if(!isNil(liveVal)) return { value:liveVal, src:'感測器', time:liveTime };
+    if(man && isToday(man.ts) && !isNil(man.value)) return { value:man.value, src:'手動輸入', time:man.ts };
+    return { value:null, src:'--', time:null };
+  }
+  function syncDongpu(){
+    const site = SITES.find(s=>s.id==='dongpu');
+    const v = pickValue(live.vibration, liveVibTime, manual.vibration);
+    const w = pickValue(live.water, liveWaterTime, manual.water);
+    site.data.vibration = v.value;
+    site.data.water = w.value;
+    dongpuMeta.vibSrc = v.src;  dongpuMeta.vibTime = v.time;
+    dongpuMeta.waterSrc = w.src; dongpuMeta.waterTime = w.time;
+    renderOverview();
+    if(currentSiteId === 'dongpu') renderSite('dongpu');
+  }
+
+
+  /* ===== 總覽 ===== */
+  function readout(label, val, unit=''){
+    return `<div>${label}<strong>${isNil(val)?'--':val+unit}</strong></div>`;
+  }
+  function renderOverview(){
+    const grid = document.getElementById('siteGrid');
+    grid.innerHTML = SITES.map(site=>{
+      const lvl = overallLevel(site);
+      const cls = levelClass(lvl);
+      const d = site.data;
+      const cells = site.isDemo
+        ? readout('水位', d.water) + readout('震動', d.vibration)
+        : readout('雨量', d.rainfall, 'mm') + readout('濕度', d.soil, '%') + readout('震動', d.vibration);
+      const cols = site.isDemo ? 2 : 3;
+      return `
+        <button class="site-card status-${cls}" data-site="${site.id}">
+          <div class="top-row">
+            <div>
+              <h3>${site.name}</h3>
+              <div class="township">${site.township} · 海拔 ${site.elevation}m</div>
+            </div>
+            ${site.isDemo ? '<span class="demo-tag">示範站 · 即時</span>' : ''}
+          </div>
+          <div class="status-row text-${cls}">
+            <span class="led ${cls}${cls==='danger'?' pulse':''}"></span>${levelLabel(lvl)}
+          </div>
+          <div class="mini-readouts" style="grid-template-columns:repeat(${cols},1fr)">${cells}</div>
+          <div class="source-note">${site.isDemo ? '資料來源：Firebase 即時連線（含手動備援）' : '資料來源：模擬展示資料'}</div>
+        </button>
+      `;
+    }).join('');
+    grid.querySelectorAll('.site-card').forEach(card=>{
+      card.addEventListener('click', ()=> openSite(card.dataset.site));
+    });
+  }
+
+
+  function contactTileHTML(site, contact, idx){
+    const offline = contact.online === false;
+    return `
+      <div class="cam-tile">
+        <div class="cam-screen ${offline?'cam-offline':''}">
+          <div class="cam-label-top">
+            <span class="rec"><span class="dot"></span>CAM ${String(idx+1).padStart(2,'0')}</span>
+            <span>${offline?'離線':'待命中'}</span>
+          </div>
+          <div class="cam-icon">${offline ? '訊號中斷' : '無影像 · 感測回報'}</div>
+          <div class="cam-label-bottom">
+            <span>${site.name}</span>
+            <span class="tile-clock">--:--:--</span>
+          </div>
+        </div>
+        <div class="cam-info">
+          <div class="role">${contact.role}</div>
+          <div class="name">${contact.name}</div>
+          <div class="conn-row"><span class="led ${offline?'pending':'safe'}"></span>${offline?'連線中斷，請確認現場狀況':'連線正常，訊號穩定'}</div>
+          <button data-notify="${contact.name}">發送示警通知</button>
+        </div>
+      </div>
+    `;
+  }
+
+
+  /* ===== 單站頁 ===== */
+  function renderSite(id){
+    const site = SITES.find(s=>s.id===id);
+    if(!site) return;
+    const lvl = overallLevel(site);
+    const cls = levelClass(lvl);
+
+
+    document.getElementById('breadcrumbText').textContent = `總覽 / ${site.name}`;
+    document.getElementById('siteTitle').textContent = site.name;
+    document.getElementById('siteMeta').textContent =
+      `${site.township} · 海拔 ${site.elevation}m ${site.isDemo ? '· 示範站（Firebase 即時連線）' : '· 模擬展示資料'}`;
+
+
+    const card = document.getElementById('overallCard');
+    const statusText = document.getElementById('overallStatus');
+    const descText = document.getElementById('overallDesc');
+    card.className = `overall-card risk-${cls === 'warn' ? 'warning' : cls}`;
+    descText.textContent = BANNER_DESC[cls];
+
+
+    if (cls === 'safe') { statusText.style.color = '#2ecc71'; statusText.textContent = '🟢 狀態正常 (安全)'; }
+    else if (cls === 'warn') { statusText.style.color = '#f1c40f'; statusText.textContent = '🟡 狀態注意 (警戒)'; }
+    else if (cls === 'danger') { statusText.style.color = '#e74c3c'; statusText.textContent = '🔴 狀態危險 (警報)'; }
+    else { statusText.style.color = '#cbd5e0'; statusText.textContent = '⚪ 等待數據'; }
+
+
+    document.getElementById('contactGrid').innerHTML =
+      site.contacts.map((c,i)=>contactTileHTML(site,c,i)).join('');
+    document.querySelectorAll('[data-notify]').forEach(btn=>{
+      btn.addEventListener('click', ()=> showToast(`已發送示警通知至「${btn.dataset.notify}」`));
+    });
+
+
+    // 手動輸入區只在東埔站顯示
+    document.getElementById('vibManualBox').classList.toggle('show', !!site.isDemo);
+    document.getElementById('waterManualBox').classList.toggle('show', !!site.isDemo);
+
+
+    if (site.isDemo) {
+      applySensorDashboardValues(site.data.vibration, site.data.water, {
+        vibSrc:dongpuMeta.vibSrc, vibTime:dongpuMeta.vibTime,
+        waterSrc:dongpuMeta.waterSrc, waterTime:dongpuMeta.waterTime
+      });
+    } else {
+      // 模擬站：以雨量換算成 0-2500 的水位顯示
+      const w = isNil(site.data.rainfall) ? null : Math.min(WATER_MAX, Math.round(site.data.rainfall * 30));
+      const now = Date.now();
+      applySensorDashboardValues(site.data.vibration, w, {
+        vibSrc:'模擬資料', vibTime:now, waterSrc:'模擬資料', waterTime:now
+      });
+    }
+  }
+
+
+  function openSite(id){
+    currentSiteId = id;
+    renderSite(id);
+    document.getElementById('overviewView').style.display = 'none';
+    document.getElementById('siteView').style.display = 'block';
+    window.scrollTo({top:0, behavior:'smooth'});
+    location.hash = `#/site/${id}`;
+  }
+  function backToOverview(){
+    currentSiteId = null;
+    document.getElementById('siteView').style.display = 'none';
+    document.getElementById('overviewView').style.display = 'block';
+    location.hash = '';
+  }
+  document.getElementById('backBtn').addEventListener('click', backToOverview);
+  window.addEventListener('hashchange', ()=>{
+    const m = location.hash.match(/^#\/site\/(.+)$/);
+    if(m && SITES.some(s=>s.id===m[1])){
+      currentSiteId = m[1];
+      renderSite(m[1]);
+      document.getElementById('overviewView').style.display = 'none';
+      document.getElementById('siteView').style.display = 'block';
+    } else { backToOverview(); }
+  });
+
+
+  let toastTimer;
+  function showToast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove('show'), 3000);
+  }
+
+
+  function tick(){
+    const now = new Date().toLocaleTimeString('zh-TW', { hour12:false });
+    const clockEl = document.getElementById('liveClock');
+    if(clockEl) clockEl.textContent = now;
+    document.querySelectorAll('.tile-clock').forEach(el=> el.textContent = now);
+  }
+  setInterval(tick, 1000);
+  tick();
+
+
+  function randomWalk(value, step, min, max){
+    let v = value + (Math.random()-0.5) * step;
+    return Math.max(min, Math.min(max, v));
+  }
+  function simulateTick(){
+    SITES.forEach(site=>{
+      if(site.isDemo) return;
+      site.data.rainfall = Math.round(randomWalk(site.data.rainfall, 4, 0, 80) * 10) / 10;
+      site.data.soil = Math.round(randomWalk(site.data.soil, 3, 5, 98));
+      site.data.vibration = Math.round(randomWalk(site.data.vibration, 300, 0, 8000));
+    });
+    renderOverview();
+    if(currentSiteId){
+      const site = SITES.find(s=>s.id===currentSiteId);
+      if(site && !site.isDemo) renderSite(currentSiteId);
+    }
+  }
+  setInterval(simulateTick, 4000);
+
+
+  /* ===== 儀表板 ===== */
+  const vibCard = document.getElementById("vibCard");
+  const vibValueEl = document.getElementById("vibValue");
+  const vibStatusBadge = document.getElementById("vibStatusBadge");
+  const vibLastUpdated = document.getElementById("vibLastUpdated");
+  const vibSourceEl = document.getElementById("vibSource");
+  const waterCard = document.getElementById("waterCard");
+  const waterValueEl = document.getElementById("waterValue");
+  const waterStatusBadge = document.getElementById("waterStatusBadge");
+  const waterLastUpdated = document.getElementById("waterLastUpdated");
+  const waterSourceEl = document.getElementById("waterSource");
+
+
+  function fmtTime(ts){
+    if(!ts) return '--';
+    const d = new Date(ts);
+    return isToday(ts) ? d.toLocaleTimeString('zh-TW', { hour12:false }) : d.toLocaleString('zh-TW', { hour12:false });
+  }
+
+
+  // 震動分級：0 無震動（綠）；1~2000 注意（黃）；>2000 強烈（紅）
+  function updateVibrationStatus(val) {
+    vibCard.classList.remove("vibration-safe", "vibration-warning", "vibration-alert");
+    vibStatusBadge.className = "status-badge ";
+    if (val <= 0) {
+      vibCard.classList.add("vibration-safe");
+      vibValueEl.innerText = `靜止 (${val})`;
+      vibStatusBadge.innerText = "無震動";
+    } else if (val <= VIB_STRONG_ABOVE) {
+      vibCard.classList.add("vibration-warning");
+      vibValueEl.innerText = `注意 (${val})`;
+      vibStatusBadge.innerText = "注意：偵測到震動";
+    } else {
+      vibCard.classList.add("vibration-alert");
+      vibValueEl.innerText = `⚠️ 強烈震動 (${val})`;
+      vibStatusBadge.innerText = "強烈震動警告！";
+    }
+  }
+
+
+  // 水位分級：<=1000 低（綠）；1001~1500 中（黃）；>1500 高（紅）
+  function updateWaterStatus(val) {
+    waterStatusBadge.className = "status-badge ";
+    waterCard.classList.remove("water-low", "water-medium", "water-high");
+    if (val <= WATER_LOW_MAX) {
+      waterStatusBadge.innerText = "狀態：低水位";
+      waterStatusBadge.classList.add("status-low");
+      waterCard.classList.add("water-low");
+    } else if (val <= WATER_MID_MAX) {
+      waterStatusBadge.innerText = "狀態：中水位";
+      waterStatusBadge.classList.add("status-medium");
+      waterCard.classList.add("water-medium");
+    } else {
+      waterStatusBadge.innerText = "狀態：高水位";
+      waterStatusBadge.classList.add("status-high");
+      waterCard.classList.add("water-high");
+    }
+  }
+
+
+  function applySensorDashboardValues(vib, water, meta = {}) {
+    if (!isNil(vib)) {
+      updateVibrationStatus(vib);
+    } else {
+      vibCard.classList.remove("vibration-safe", "vibration-warning", "vibration-alert");
+      vibValueEl.innerText = '--';
+      vibStatusBadge.className = "status-badge";
+      vibStatusBadge.innerText = "等待數據...";
+    }
+    vibSourceEl.innerText = meta.vibSrc || '--';
+    vibLastUpdated.innerText = fmtTime(meta.vibTime);
+
+
+    if (!isNil(water)) {
+      waterValueEl.innerText = water;
+      updateWaterStatus(water);
+    } else {
+      waterCard.classList.remove("water-low", "water-medium", "water-high");
+      waterValueEl.innerText = '--';
+      waterStatusBadge.className = "status-badge";
+      waterStatusBadge.innerText = "等待數據...";
+    }
+    waterSourceEl.innerText = meta.waterSrc || '--';
+    waterLastUpdated.innerText = fmtTime(meta.waterTime);
+  }
+
+
+  /* ===== 手動上傳 ===== */
+
+
+  // 避免連線異常時一直卡住
+  function withTimeout(promise, ms = 8000){
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(Object.assign(new Error('連線逾時'), { code:'timeout' })), ms)
+      )
+    ]);
+  }
+
+
+  async function submitManual(kind, inputEl, hintEl, btnEl, min, max, label){
+    const raw = inputEl.value.trim();
+    const v = Number(raw);
+    hintEl.className = 'manual-hint';
+    if (raw === '' || !Number.isFinite(v) || v < min || v > max) {
+      hintEl.classList.add('err');
+      hintEl.textContent = `請輸入 ${min} ~ ${max} 之間的數字`;
+      return;
+    }
+    btnEl.disabled = true;
+    hintEl.textContent = '上傳中...';
+    const ts = Date.now();
+    try {
+      // 1) 直接修改 sensor/current 的數值（ESP32 讀原本的固定路徑即可）
+      //    只更新單一欄位，不會動到 updatedAt 與另一個感測器的值
+      await withTimeout(update(ref(db, 'sensor/current'), { [kind]: v }));
+
+
+      // 2) 最新手動值（網頁在感測器離線時顯示用）
+      await withTimeout(set(ref(db, `sensor/manual/${kind}`), { value:v, ts }));
+
+
+      // 3) 歷史紀錄：失敗不影響主流程
+      try {
+        await withTimeout(push(ref(db, `sensor/manualLog/${kind}`), { value:v, ts }));
+      } catch (logErr) {
+        console.warn('歷史紀錄寫入失敗（不影響主要上傳）：', logErr);
+      }
+
+
+      inputEl.value = '';
+      hintEl.className = 'manual-hint ok';
+      hintEl.textContent = `✔ 已上傳 ${label}：${v}（${fmtTime(ts)}）`;
+      showToast(`${label}手動值已上傳 Firebase`);
+    } catch (err) {
+      console.error('手動上傳失敗：', err);
+      hintEl.className = 'manual-hint err';
+      hintEl.textContent = `上傳失敗（${err.code || err.message}）`;
+    } finally {
+      btnEl.disabled = false;
+    }
+  }
+
+
+  const vibInput = document.getElementById('vibInput');
+  const vibSubmit = document.getElementById('vibSubmit');
+  const vibHint = document.getElementById('vibHint');
+  const waterInput = document.getElementById('waterInput');
+  const waterSubmit = document.getElementById('waterSubmit');
+  const waterHint = document.getElementById('waterHint');
+
+
+  vibSubmit.addEventListener('click', ()=> submitManual('vibration', vibInput, vibHint, vibSubmit, 0, 100000, '震動'));
+  waterSubmit.addEventListener('click', ()=> submitManual('waterLevel', waterInput, waterHint, waterSubmit, 0, WATER_MAX, '水位'));
+  vibInput.addEventListener('keydown', e=>{ if(e.key==='Enter') vibSubmit.click(); });
+  waterInput.addEventListener('keydown', e=>{ if(e.key==='Enter') waterSubmit.click(); });
+
+
+  /* ===== Firebase 即時監聽 ===== */
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+
+
+  // 感測器資料（以 updatedAt 是否持續變動判斷感測器是否在線）
+  const STALE_MS = 60000;            // 超過 60 秒 updatedAt 沒變 → 視為離線，改用手動值
+  let latestCurrent = {};
+  let lastUpdatedAt = undefined;
+  let lastChangeLocal = 0;
+  let lastOnline = null;
+
+
+  function applyLive(force = false){
+    const online = lastChangeLocal > 0 && (Date.now() - lastChangeLocal <= STALE_MS);
+    const d = latestCurrent;
+    const vib = online ? (d.vibration ?? null) : null;
+    const wat = online ? (d.waterLevel ?? null) : null;
+
+
+    live.vibration = vib;  liveVibTime  = isNil(vib) ? null : lastChangeLocal;
+    live.water     = wat;  liveWaterTime = isNil(wat) ? null : lastChangeLocal;
+
+
+    if (force || online !== lastOnline) {
+      lastOnline = online;
+      syncDongpu();
+    }
+  }
+
+
+  onValue(ref(db, "sensor/current"), (snapshot) => {
+    statusDot.classList.add("online");
+    statusText.innerText = "Firebase 即時連線正常";
+    latestCurrent = snapshot.val() || {};
+    if (latestCurrent.updatedAt !== lastUpdatedAt) {
+      lastUpdatedAt = latestCurrent.updatedAt;
+      lastChangeLocal = Date.now();
+    }
+    applyLive(true);
+  }, (error) => {
+    console.error("Firebase 連線失敗：", error);
+    statusDot.classList.remove("online");
+    statusText.innerText = "Firebase 連線中斷或失敗";
+  });
+
+
+  // Firebase 沒有新資料時不會觸發事件，所以要定時檢查是否逾時
+  setInterval(() => applyLive(false), 5000);
+
+
+  // 手動輸入資料
+  onValue(ref(db, "sensor/manual"), (snapshot) => {
+    const m = snapshot.val() || {};
+    manual.vibration = m.vibration || null;
+    manual.water = m.waterLevel || null;
+    syncDongpu();
+  }, (error) => {
+    console.error("讀取手動值失敗：", error);
+  });
+
+
+  // 路由檢測與初始化
+  const initialMatch = location.hash.match(/^#\/site\/(.+)$/);
+  if (initialMatch && SITES.some(s => s.id === initialMatch[1])) {
+    openSite(initialMatch[1]);
+  } else {
+    renderOverview();
+  }
+</script>
+</body>
+</html>
